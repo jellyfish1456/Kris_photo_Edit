@@ -4,26 +4,127 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kris Photo Edit</title>
-  <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #1a1a1a;
-      color: #e8e8e8;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    .card { text-align: center; }
-    h1 { font-weight: 300; letter-spacing: 2px; }
-    p { color: #888; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="card">
-    <h1>Kris Photo Edit</h1>
-    <p>A Lightroom-style photo editor — coming soon.</p>
+  <header id="topbar">
+    <div class="logo">KRIS <span>PHOTO EDIT</span></div>
+    <nav id="module-nav">
+      <button id="nav-library" class="active">Library</button>
+      <button id="nav-develop">Develop</button>
+    </nav>
+    <div class="topbar-right">
+      <span id="photo-count"></span>
+    </div>
+  </header>
+
+  <div id="main">
+    <aside id="left-panel">
+      <div class="panel-section">
+        <button id="import-btn" class="big-btn">+ Import Photos</button>
+        <input type="file" id="file-input" accept="image/*" multiple hidden>
+      </div>
+      <div class="panel-section">
+        <h3>Catalog</h3>
+        <div class="catalog-item active" id="all-photos">All Photos <span id="all-count">0</span></div>
+      </div>
+      <div class="panel-section">
+        <h3>Filter</h3>
+        <div class="filter-row">
+          <span class="filter-label">Rating</span>
+          <div id="filter-stars" class="stars"></div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Flag</span>
+          <div id="filter-flags">
+            <button data-flag="all" class="active">All</button>
+            <button data-flag="pick">⚑ Picks</button>
+            <button data-flag="reject">✕ Rejects</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel-section" id="presets-section">
+        <h3>Presets</h3>
+        <div id="preset-list"></div>
+      </div>
+      <div class="panel-section keys-help">
+        <h3>Shortcuts</h3>
+        <div class="key-row"><kbd>G</kbd> Library &nbsp; <kbd>D</kbd> Develop</div>
+        <div class="key-row"><kbd>0–5</kbd> Rate &nbsp; <kbd>P</kbd>/<kbd>X</kbd>/<kbd>U</kbd> Flag</div>
+        <div class="key-row"><kbd>←</kbd><kbd>→</kbd> Navigate &nbsp; <kbd>\</kbd> Before</div>
+      </div>
+    </aside>
+
+    <section id="center">
+      <!-- LIBRARY -->
+      <div id="library-view">
+        <div id="grid" class="grid"></div>
+        <div id="empty-state">
+          <div class="empty-inner">
+            <div class="empty-icon">🗂</div>
+            <h2>Your catalog is empty</h2>
+            <p>Click <b>+ Import Photos</b> or drag &amp; drop images anywhere.</p>
+          </div>
+        </div>
+      </div>
+      <!-- DEVELOP -->
+      <div id="develop-view" hidden>
+        <div id="dev-toolbar">
+          <span id="dev-filename"></span>
+          <div class="dev-tools">
+            <button id="rotate-ccw" title="Rotate left">⟲</button>
+            <button id="rotate-cw" title="Rotate right">⟳</button>
+            <button id="before-after" title="Hold to see original (\)">Y|Y Before</button>
+          </div>
+        </div>
+        <div id="canvas-wrap">
+          <canvas id="dev-canvas"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <aside id="right-panel" hidden>
+      <div class="panel-section">
+        <canvas id="histogram" width="256" height="100"></canvas>
+      </div>
+      <div class="panel-section rate-flag-row">
+        <div id="dev-stars" class="stars big"></div>
+        <div id="dev-flags">
+          <button data-flag="pick" title="Pick (P)">⚑</button>
+          <button data-flag="reject" title="Reject (X)">✕</button>
+        </div>
+      </div>
+      <div id="sliders"></div>
+      <div class="panel-section btn-row">
+        <button id="copy-btn">Copy</button>
+        <button id="paste-btn">Paste</button>
+        <button id="reset-btn">Reset</button>
+      </div>
+      <div class="panel-section" id="export-section">
+        <h3>Export</h3>
+        <div class="slider-row">
+          <label>Quality</label>
+          <input type="range" id="export-quality" min="40" max="100" value="90">
+          <span id="export-quality-val">90</span>
+        </div>
+        <div class="slider-row">
+          <label>Long edge</label>
+          <select id="export-size">
+            <option value="0">Original</option>
+            <option value="3000">3000 px</option>
+            <option value="2048" selected>2048 px</option>
+            <option value="1200">1200 px</option>
+          </select>
+        </div>
+        <button id="export-btn" class="big-btn">Export JPEG</button>
+      </div>
+    </aside>
   </div>
+
+  <footer id="filmstrip"></footer>
+
+  <div id="drop-overlay" hidden><div>Drop photos to import</div></div>
+
+  <script src="app.js"></script>
 </body>
 </html>
