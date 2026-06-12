@@ -715,7 +715,7 @@ function wireEvents() {
 
   // keyboard
   window.addEventListener("keydown", e => {
-    if (e.target.matches("input, select, textarea")) return;
+    if (e.target instanceof Element && e.target.matches("input, select, textarea")) return;
     const k = e.key;
     if (k === "g" || k === "G") setModule("library");
     else if (k === "d" || k === "D") setModule("develop");
