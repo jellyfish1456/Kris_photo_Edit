@@ -627,6 +627,10 @@ function buildSliders() {
       div.appendChild(row);
     }
     if (sec.name === "Pixel Stretch") {
+      const pickRow = document.createElement("div");
+      pickRow.className = "slider-row";
+      pickRow.innerHTML = `<button id="ps-pick" class="pick-btn">⌖ Pick start point on photo</button>`;
+      div.appendChild(pickRow);
       const row = document.createElement("div");
       row.className = "slider-row";
       row.innerHTML = `<label>Direction</label>
@@ -735,6 +739,54 @@ function wireEvents() {
   const beforeOff = () => { state.beforeMode = false; ba.classList.remove("active"); renderDevelop(); };
   ba.addEventListener("mousedown", beforeOn);
   window.addEventListener("mouseup", () => state.beforeMode && beforeOff());
+
+  // pixel stretch: pick start point / drag-to-pull on the canvas
+  const cv = $("dev-canvas");
+  let psDrag = null;
+  const canvasToTex = e => {
+    const r = cv.getBoundingClientRect();
+    const sx = (e.clientX - r.left) / r.width, sy = (e.clientY - r.top) / r.height;
+    const rot = currentPhoto()?.settings.rotate || 0;
+    if (rot === 90) return { x: sy, y: 1 - sx };
+    if (rot === 180) return { x: 1 - sx, y: 1 - sy };
+    if (rot === 270) return { x: 1 - sy, y: sx };
+    return { x: sx, y: sy };
+  };
+  const applyPick = (start, cur) => {
+    const p = currentPhoto();
+    if (!p) return;
+    const dx = cur.x - start.x, dy = cur.y - start.y;
+    let dir = p.settings.psDir || 0;
+    if (Math.abs(dx) > 0.02 || Math.abs(dy) > 0.02)
+      dir = Math.abs(dy) >= Math.abs(dx) ? (dy < 0 ? 0 : 1) : (dx < 0 ? 2 : 3);
+    const a = dir === 0 ? start.y : dir === 1 ? 1 - start.y : dir === 2 ? start.x : 1 - start.x;
+    p.settings.psDir = dir;
+    p.settings.psAmount = Math.round(Math.max(0, Math.min(1, a)) * 100);
+    savePhoto(p);
+    syncSliders();
+    renderDevelop();
+  };
+  const setPickMode = on => {
+    state.psPick = on;
+    $("ps-pick").classList.toggle("active", on);
+    $("ps-pick").textContent = on ? "⌖ Click photo (drag = pull direction)" : "⌖ Pick start point on photo";
+    cv.classList.toggle("picking", on);
+  };
+  $("ps-pick").onclick = () => setPickMode(!state.psPick);
+  cv.addEventListener("pointerdown", e => {
+    if (!state.psPick) return;
+    psDrag = canvasToTex(e);
+    cv.setPointerCapture(e.pointerId);
+    applyPick(psDrag, psDrag);
+  });
+  cv.addEventListener("pointermove", e => {
+    if (state.psPick && psDrag) applyPick(psDrag, canvasToTex(e));
+  });
+  cv.addEventListener("pointerup", () => {
+    if (!state.psPick) return;
+    psDrag = null;
+    setPickMode(false);
+  });
 
   // rating / flags in develop panel
   $("dev-stars").addEventListener("click", e => {
