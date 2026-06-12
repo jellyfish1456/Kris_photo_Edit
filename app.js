@@ -9,6 +9,7 @@ const DEFAULTS = {
   exposure: 0, contrast: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0,
   vibrance: 0, saturation: 0,
   sharpen: 0, vignette: 0,
+  psAmount: 0, psWave: 25, psFreq: 30, psDir: 0,
   rotate: 0,
 };
 
@@ -34,6 +35,11 @@ const SLIDER_SECTIONS = [
   ]},
   { name: "Effects", items: [
     { k: "vignette", label: "Vignette", min: -100, max: 100 },
+  ]},
+  { name: "Pixel Stretch", items: [
+    { k: "psAmount", label: "Stretch", min: 0, max: 100 },
+    { k: "psWave", label: "Wave", min: 0, max: 100 },
+    { k: "psFreq", label: "Frequency", min: 1, max: 100 },
   ]},
 ];
 
@@ -113,19 +119,42 @@ uniform sampler2D u_image;
 uniform vec2 u_texSize;
 uniform float u_exposure, u_contrast, u_highlights, u_shadows, u_whites, u_blacks;
 uniform float u_temp, u_tint, u_vibrance, u_saturation, u_sharpen, u_vignette;
+uniform float u_psAmount, u_psWave, u_psFreq, u_psDir;
 
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 
+float psWave(float d) {
+  // layered sines for an organic flowing ribbon
+  return u_psWave * 0.25 * (0.75 * sin(d * u_psFreq * 6.2831)
+                          + 0.25 * sin(d * u_psFreq * 14.43 + 1.7));
+}
+
 void main() {
-  vec3 c = texture2D(u_image, v_tex).rgb;
+  vec2 uv = v_tex;
+
+  // pixel stretch: smear a source line toward the chosen edge
+  if (u_psAmount > 0.0) {
+    float a = u_psAmount;
+    if (u_psDir < 0.5) {            // up (top of image)
+      if (uv.y < a) { float d = (a - uv.y) / a; uv.x += psWave(d); uv.y = a; }
+    } else if (u_psDir < 1.5) {     // down
+      if (uv.y > 1.0 - a) { float d = (uv.y - (1.0 - a)) / a; uv.x += psWave(d); uv.y = 1.0 - a; }
+    } else if (u_psDir < 2.5) {     // left
+      if (uv.x < a) { float d = (a - uv.x) / a; uv.y += psWave(d); uv.x = a; }
+    } else {                        // right
+      if (uv.x > 1.0 - a) { float d = (uv.x - (1.0 - a)) / a; uv.y += psWave(d); uv.x = 1.0 - a; }
+    }
+  }
+
+  vec3 c = texture2D(u_image, uv).rgb;
 
   // sharpening (unsharp mask, 4-tap)
   if (u_sharpen > 0.0) {
     vec2 px = 1.0 / u_texSize;
-    vec3 blur = texture2D(u_image, v_tex + vec2(px.x, 0.0)).rgb
-              + texture2D(u_image, v_tex - vec2(px.x, 0.0)).rgb
-              + texture2D(u_image, v_tex + vec2(0.0, px.y)).rgb
-              + texture2D(u_image, v_tex - vec2(0.0, px.y)).rgb;
+    vec3 blur = texture2D(u_image, uv + vec2(px.x, 0.0)).rgb
+              + texture2D(u_image, uv - vec2(px.x, 0.0)).rgb
+              + texture2D(u_image, uv + vec2(0.0, px.y)).rgb
+              + texture2D(u_image, uv - vec2(0.0, px.y)).rgb;
     blur *= 0.25;
     c += (c - blur) * u_sharpen * 1.5;
   }
@@ -213,7 +242,7 @@ function createRenderer(canvas) {
   const U = {};
   for (const n of ["u_texSize", "u_exposure", "u_contrast", "u_highlights", "u_shadows",
     "u_whites", "u_blacks", "u_temp", "u_tint", "u_vibrance", "u_saturation",
-    "u_sharpen", "u_vignette"])
+    "u_sharpen", "u_vignette", "u_psAmount", "u_psWave", "u_psFreq", "u_psDir"])
     U[n] = gl.getUniformLocation(prog, n);
 
   let imgW = 0, imgH = 0;
@@ -254,6 +283,10 @@ function createRenderer(canvas) {
       gl.uniform1f(U.u_saturation, s.saturation / 100);
       gl.uniform1f(U.u_sharpen, s.sharpen / 100);
       gl.uniform1f(U.u_vignette, s.vignette / 100);
+      gl.uniform1f(U.u_psAmount, (s.psAmount || 0) / 100);
+      gl.uniform1f(U.u_psWave, (s.psWave ?? 25) / 100);
+      gl.uniform1f(U.u_psFreq, (s.psFreq ?? 30) / 10);
+      gl.uniform1f(U.u_psDir, s.psDir || 0);
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     },
@@ -490,6 +523,8 @@ function syncSliders() {
     inp.closest(".slider-row").querySelector(".val").textContent =
       inp._fmt ? inp._fmt(+inp.value) : inp.value;
   });
+  document.querySelectorAll(".dir-btns button").forEach(b =>
+    b.classList.toggle("active", +b.dataset.dir === (s.psDir || 0)));
   $("dev-stars").innerHTML = starsHTML(p ? p.rating : 0);
   document.querySelectorAll("#dev-flags button").forEach(b =>
     b.classList.toggle("active", p && p.flag === b.dataset.flag));
@@ -588,6 +623,24 @@ function buildSliders() {
         inp.value = 0;
         row.querySelector(".val").textContent = it.fmt ? it.fmt(0) : "0";
         setSetting(it.k, 0);
+      });
+      div.appendChild(row);
+    }
+    if (sec.name === "Pixel Stretch") {
+      const row = document.createElement("div");
+      row.className = "slider-row";
+      row.innerHTML = `<label>Direction</label>
+        <div class="dir-btns">
+          <button data-dir="0" class="active" title="Stretch top edge">↑</button>
+          <button data-dir="1" title="Stretch bottom edge">↓</button>
+          <button data-dir="2" title="Stretch left edge">←</button>
+          <button data-dir="3" title="Stretch right edge">→</button>
+        </div>`;
+      row.querySelector(".dir-btns").addEventListener("click", e => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        row.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+        setSetting("psDir", +b.dataset.dir);
       });
       div.appendChild(row);
     }

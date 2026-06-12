@@ -11,6 +11,8 @@ A personal Lightroom Classic–style photo editor that runs entirely in the brow
 - **Develop module** — real-time GPU (WebGL) adjustments:
   white balance (temp/tint), exposure, contrast, highlights, shadows,
   whites, blacks, vibrance, saturation, sharpening, vignette, and 90° rotation.
+- **Pixel Stretch** — the viral smear effect: pick an edge (↑ ↓ ← →), choose how
+  much of the frame to stretch, and dial in Wave/Frequency for flowing ribbons.
 - **Non-destructive** — originals are never touched; edits are settings stored
   per photo, with a live RGB histogram and hold-to-compare Before view.
 - **Persistent catalog** — photos and edits are saved in your browser
